@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio Live Chat</title>
+    <style>
+        html, body {
+            margin: 0; padding: 0; height: 100%; background: transparent; 
+            font-family: Arial, sans-serif; color: #e0e0e0; overflow: hidden;
+        }
+               /* 📱 ΤΟ ΚΟΥΤΙ ΤΟΥ ΚΙΝΗΤΟΥ: Όρθιο layout που προσαρμόζεται στο ύψος (vh) */
+        #chat-container {
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; /* Γεμίζει ακριβώς το ύψος του διαθέσιμου χώρου */
+            width: 100%; 
+            max-width: 360px; /* Κλειδώνει το πλάτος σαν όρθιο smartphone */
+            background: transparent; /* Το εσωτερικό dark φόντο του chat */
+            box-sizing: border-box; 
+            padding: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin: 0 auto; /* Κεντράρει το όρθιο chat στην οθόνη του υπολογιστή */
+        }
+
+                        #chat-messages {
+            flex: 1; 
+            background: transparent; /* Τελείως διάφανο φόντο μηνυμάτων */
+            overflow-y: auto; 
+            padding: 10px; 
+            font-size: 16px; /* Το μέγεθος που επιλέξατε */
+            font-weight: bold; /* 🔥 ΚΛΕΙΔΙ: Εδώ κάνουμε όλα τα γράμματα BOLD (Έντονα)! */
+            border-bottom: 1px solid #333;
+        }
+
+
+        #input-area {
+            padding: 8px 0; display: flex; flex-direction: column; gap: 6px; background: #000000;
+        }
+        .input-row { display: flex; gap: 5px; align-items: center; }
+        input[type="text"] { 
+            padding: 8px; 
+            padding-right: 32px; /* 🔥 ΚΛΕΙΔΙ: Αφήνει χώρο δεξιά μέσα στο κουτάκι για τη φατσούλα */
+            border: 1px solid #444; 
+            border-radius: 4px; 
+            background: #2c2c2c; 
+            color: #fff; 
+            font-size: 14px;
+            width: 100%; /* Απλώνει ομοιόμορφα */
+            box-sizing: border-box;
+        }
+                       /* 🖼️ CSS ΓΙΑ ΤΟ ΗΜΙΔΙΑΦΑΝΟ ΠΑΡΑΘΥΡΟ GIF (ΚΛΕΙΔΩΜΕΝΟ ΜΕΣΑ ΣΤΟ CONTAINER) */
+        #gif-popup-panel {
+            display: none;
+            position: absolute;
+            bottom: 60px; 
+            left: 10px;    /* 🔥 ΚΛΕΙΔΙ: Μαζεύει το πλαίσιο 10px μέσα από την αριστερή άκρη */
+            right: 10px;   /* 🔥 ΚΛΕΙΔΙ: Μαζεύει το πλαίσιο 10px μέσα από τη δεξιά άκρη */
+            background: rgba(20, 24, 31, 0.95) !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 204, 0.4);
+            border-radius: 8px;
+            padding: 8px;
+            max-height: 110px; 
+            overflow-y: auto; 
+            z-index: 99999 !important;
+            pointer-events: auto !important;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.6);
+            box-sizing: border-box; /* Εξασφαλίζει ότι τα paddings δεν μεγαλώνουν το κουτί */
+        }
+
+
+        .gif-grid {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .gif-item {
+            width: 55px;
+            height: 55px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #444;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .gif-item:hover {
+            transform: scale(1.1);
+            border-color: #00ffcc;
+            box-shadow: 0 0 8px rgba(0, 255, 204, 0.4);
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="chat-container" style="position: relative;"> <!-- 🔥 ΚΛΕΙΔΙ: Κλειδώνει όλα τα popup παράθυρα ΜΕΣΑ στο chat! -->
+
+        <div id="chat-messages">
+        <!-- 📊 ΜΟΝΟ Ο ΜΕΤΡΗΤΗΣ ΜΕΝΕΙ ΣΤΑΘΕΡΟΣ ΣΤΗΝ ΚΟΡΥΦΗ -->
+        <div style="display: flex; justify-content: flex-end; align-items: center; padding: 5px 10px; margin-bottom: 12px; position: sticky; top: 0; background: transparent; z-index: 10;">
+            <div id="user-counter" style="color: #00ffcc; font-weight: bold; font-size: 13px; text-shadow: 0 0 5px #00ffcc;">Online: 0</div>
+        </div>
+            
+        <!-- 🟢 ΤΟ ΜΗΝΥΜΑ ΣΥΝΔΕΣΗΣ: Τώρα θα ανεβαίνει κανονικά προς τα πάνω μαζί με τα μηνύματα! -->
+        <div id="connection-status" style="color: #aaa; text-align: center; font-style: italic; font-size: 13px; margin-bottom: 15px;">Σύνδεση...</div>
+
+</div>
+    
+   <!-- 🖼️ ΤΟ Η-ΜΙΔΙΑΦΑΝΟ ΠΑΡΑΘΥΡΟ GIF (ΤΩΡΑ ΕΞΩ ΚΑΙ ΑΠΟΛΥΤΑ ΕΛΕΥΘΕΡΟ ΓΙΑ ΚΛΙΚΣ) -->
+    <div id="gif-popup-panel" style="display: none; position: absolute; bottom: 65px; left: 5px; right: 5px; background: rgba(20, 24, 31, 0.95) !important; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(0, 255, 204, 0.4); border-radius: 8px; padding: 8px; max-height: 120px; overflow-y: auto; z-index: 999999 !important; pointer-events: auto !important; box-shadow: 0 -5px 15px rgba(0,0,0,0.6);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #333; padding-bottom: 3px; pointer-events: auto !important;">
+            <span style="color: #00ffcc; font-size: 11px; font-weight: bold; font-style: italic;">🎬 Επιλέξτε GIF ή Φωτογραφία:</span>
+            <button type="button" onclick="toggleGifPanel()" style="background: #c0392b; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: bold; height: auto; pointer-events: auto !important;">X</button>
+        </div>
+                <div class="gif-grid" style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; pointer-events: auto !important;">
+            <!-- 📸 Πραγματικά, ζωντανά links για GIF έτοιμα να πατηθούν -->
+
+   <img src="https://cbox.im/i/L9CAZ.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/timpH.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/adI6S.jpg
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/9LTtz.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/ruEj8.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/V8F0c.jpg
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/jrlyS.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/hKUYa.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/tu11K.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/LFgTL.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/5i2qw.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/NeL0D.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">        
+ <img src="https://cbox.im/i/L8k9J.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/T5X28.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/2dlhh.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/yCxPC.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/oRAeS.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/gM3TD.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/jzZyU.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/Psd62.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/ABnDg.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/dPiV9.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/QGExe.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/cqLJM.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+   <img src="https://cbox.im/i/dtRZs.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/RCQUX.jpg" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/RU5Be.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/wfIp2.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/stASr.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/8CoJN.jpg
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/ZcLX1.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/3K1Fd.png" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/lgIUw.jpg
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/D1ikg.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/1QjMl.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/D0QyC.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">  
+      
+ <img src="https://cbox.im/i/FbCgl.jpg" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/L3Rb6.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/mbjHa.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/jDmEu.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/lcIgx.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/8R7DL.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/CtNix.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/WD7yG.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/BxlKf.jpg
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/v7UZL.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/wkS5K.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/dFbbY.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/rAsBd.jpg" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/hffcv.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/Exn6v.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/We59j.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/KtekQ.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/jcdYY.png
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/9D43H.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/5Ejo9.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/fhJIt.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/aQDkw.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/Gk98W.jpg" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/MKlGz.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">  
+      
+ <img src="https://cbox.im/i/T47tC.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/nZGvg.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/xQUrI.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/ClGCx.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/AzGHl.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/jx3Py.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/5j3Iw.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/SH28r.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/jxw2g.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/JjeK7.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/ss72u.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/N6FB7.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/rdK78.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/trXMv.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/a4QBg.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/jG7Ec.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/iD9FL.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/ajvA8.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/roLCn.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/shNar.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/QWBdi.jpg
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/vIZqz.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/Kppus.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/CkFle.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">  
+      
+ <img src="https://cbox.im/i/uXSxu.jpg" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/xVFre.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/Ilx34.png
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/4GbvJ.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/B4Pyb.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/n0bjG.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/YeIDa.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/YcCx5.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/lV46i.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/GT3Dq.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/mUbYt.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/bk6uT.jpg
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/bLQ7o.jpg
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+
+<img src="https://cbox.im/i/gSGL8.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 1">
+            <img src="https://cbox.im/i/pLktx.gif" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 2">
+            <img src="https://cbox.im/i/KMxHs.gif
+" class="gif-item" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #444; pointer-events: auto !important;" title="GIF 3">
+        </div>
+
+    </div>
+
+
+    <div id="input-area">
+        <input type="text" id="chat-username" placeholder="Το όνομά σας..." style="width: 100%; box-sizing: border-box;" />
+        <div class="input-row">
+            <button id="voice-btn" style="background: #c0392b !important; color: white; width: 45px; height: 38px !important; border-radius: 5px !important; border: none !important; outline: none !important; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(192, 57, 43, 0.3);" disabled>🎙️</button>
+<!-- 🎭 ΤΟ ΠΛΑΙΣΙΟ ΜΗΝΥΜΑΤΟΣ ΜΕ ΤΗΝ ΕΝΣΩΜΑΤΩΜΕΝΗ ΦΑΤΣΟΥΛΑ ΔΕΞΙΑ -->
+        <div style="position: relative; flex: 1; display: flex; align-items: center;">
+            <input type="text" id="chat-message" placeholder="Γράψτε μήνυμα..." disabled autocomplete="off">
+            
+            <!-- ⚡ ΤΟ ΚΟΥΜΠΙ ΦΑΤΣΟΥΛΑ (ΓΙΑ ΤΟ GIF PANEL) -->
+            <button type="button" id="gif-panel-btn" title="GIF & Photos" style="position: absolute; right: 4px; background: none; border: none; color: #00ffcc; cursor: pointer; font-size: 14px; padding: 0; outline: none; z-index: 5; text-shadow: 0 0 5px rgba(0, 255, 204, 0.5);">😊</button>
+        </div>
+        
+
+           <button id="chat-send" style="background: #2980b9 !important; color: white; padding: 0 18px; height: 38px !important; border-radius: 5px !important; border: none !important; outline: none !important; font-size: 14px; font-weight: bold !important; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(41, 128, 185, 0.3);" disabled>Αποστολή</button>
+        </div>
+    </div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
+<script>
+    const socket = io('https://panagiotis-live-chat.onrender.com/');
+    const soundSend = new Audio('https://www.myinstants.com/media/sounds/magic-fairy.mp3'); 
+    const soundReceive = new Audio('https://www.myinstants.com/media/sounds/ding-sound-effect_2.mp3'); 
+    const soundJoin = new Audio('https://www.myinstants.com/media/sounds/xat-notification-sound.mp3'); 
+ 
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdmin = urlParams.get('admin') === 'true';
+    const myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+
+    const colors = ['#00ffcc', '#00ff66', '#ffff00', '#ff007f', '#ff9900', '#cc00ff', '#33ccff', '#ff3333', '#1abc9c'];
+    const userColor = colors[Math.floor(Math.random() * colors.length)];
+
+    const messagesContainer = document.getElementById('chat-messages');
+    const statusContainer = document.getElementById('connection-status');
+    const usernameInput = document.getElementById('chat-username');
+    const messageInput = document.getElementById('chat-message');
+    const sendButton = document.getElementById('chat-send');
+    const voiceButton = document.getElementById('voice-btn');
+
+    let mediaRecorder = null; let audioChunks = []; let mediaStream = null;
+
+    // Η «μαγική» συνάρτηση linkify (Απλή, πανίσχυρη και σε ασφαλή μορφή)
+    function linkify(text) {
+        const urlPattern = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+        return text.replace(urlPattern, function(url) {
+            const u = url.toLowerCase();
+            if (u.includes('.jpg') || u.includes('.jpeg') || u.includes('.png') || u.includes('.gif') || u.includes('.webp')) {
+                return `<img src="${url}" style="max-width: 100%; max-height: 150px; border-radius: 8px; display: block; margin-top: 5px; border: 1px solid #333; cursor: pointer;" onclick="window.open('${url}', '_blank')" alt="Εικόνα Chat" />`;
+            } else {
+                return `<a href="${url}" target="_blank" style="color: #00ffcc; text-decoration: underline; font-weight: bold;">${url}</a>`;
+            }
+        });
+    }
+
+    socket.on('connect', () => {
+        statusContainer.innerHTML = '🟢 Live Chat Συνδέθηκε!'; statusContainer.style.color = '#2ecc71';
+        messageInput.disabled = false; sendButton.disabled = false;
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) { voiceButton.disabled = false; setupVoiceRecording(); }
+    });
+        // 📊 Live Ακρόαση με αυτόματο ήχο εισόδου θεατή!
+    let lastUserCount = 0; // Κρατάει τον προηγούμενο αριθμό
+
+    socket.on('user-count', (count) => {
+        const counterEl = document.getElementById('user-counter');
+        if (counterEl) {
+            counterEl.innerText = `Online: ${count}`;
+        }
+        
+        // 🔥 ΚΛΕΙΔΙ: Αν ο αριθμός των χρηστών αυξήθηκε, παίξε τον ήχο εισόδου!
+        if (count > lastUserCount && lastUserCount !== 0) {
+            soundJoin.play().catch(e => console.log('Ήχος εισόδου'));
+        }
+        
+        lastUserCount = count; // Ενημέρωση του αριθμού για την επόμενη φορά
+    });
+
+    function setupVoiceRecording() {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+            mediaStream = stream; mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); audioChunks = [];
+                const reader = new FileReader(); reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => socket.emit('send-message', { isVoice: true, messageId: 'msg_'+Math.random().toString(36).substr(2,9), name: usernameInput.value.trim()||'Επισκέπτης', message: reader.result, color: userColor, userId: myUserId });
+            };
+        }).catch(err => console.log(err));
+
+        voiceButton.addEventListener('mousedown', () => { if(mediaRecorder && mediaRecorder.state==='inactive') { audioChunks=[]; mediaRecorder.start(); voiceButton.style.background='#f1c40f'; } });
+        window.addEventListener('mouseup', () => { if(mediaRecorder && mediaRecorder.state==='recording') { mediaRecorder.stop(); voiceButton.style.background='#c0392b'; } });
+        voiceButton.addEventListener('touchstart', (e) => { e.preventDefault(); audioChunks=[]; mediaRecorder.start(); voiceButton.style.background='#f1c40f'; });
+        voiceButton.addEventListener('touchend', () => { if(mediaRecorder && mediaRecorder.state==='recording') { mediaRecorder.stop(); voiceButton.style.background='#c0392b'; } });
+    }
+
+    socket.on('receive-message', (data) => {
+        if (data.type === 'delete-message') { const el = document.getElementById(data.messageId); if(el) el.remove(); return; }
+        if (document.getElementById(data.messageId)) return;
+        const msgEl = document.createElement('div'); msgEl.id = data.messageId; msgEl.style.marginBottom = '8px';
+        let delBtn = isAdmin ? `<button style="background:#c0392b;color:white;height:20px;padding:0 5px;margin-right:5px;" onclick="socket.emit('send-message',{type:'delete-message',messageId:'${data.messageId}'})">X</button>` : '';
+        
+        if (data.isVoice) { 
+            msgEl.innerHTML = `${delBtn}<strong style="color:${data.color || '#00ffcc'};">${data.name}:</strong><audio controls style="max-width:180px;height:30px;display:block;" src="${data.message}"></audio>`; 
+                } else { 
+            // 🔥 ΚΛΕΙΔΙ: Προσθέτουμε font-style: italic; για πλάγια, καλλιγραφική γραφή στο μήνυμα!
+            msgEl.innerHTML = `${delBtn}<strong style="color:${data.color || '#00ffcc'};">${data.name}:</strong> <span style="color: #ffff00; font-style: italic;">${linkify(data.message)}</span>`; 
+        }
+
+        messagesContainer.appendChild(msgEl); messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        if(data.userId !== myUserId) soundReceive.play().catch(e=>'');
+    });
+
+    function sendMessage() {
+        const text = messageInput.value.trim(); 
+        if (text === '') return;
+
+        soundSend.play().catch(e => console.log('Ήχος'));
+
+        socket.emit('send-message', { 
+            messageId: 'msg_' + Math.random().toString(36).substr(2, 9), 
+            name: usernameInput.value.trim() || 'Επισκέπτης', 
+            message: text, 
+            color: userColor, 
+            userId: myUserId 
+        });
+        messageInput.value = '';
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+    // 🎭 Λειτουργία για το άνοιγμα και κλείσιμο του GIF Panel
+    function toggleGifPanel() {
+        const panel = document.getElementById('gif-popup-panel');
+        if (panel) {
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+    }
+
+    // Σύνδεση του κλικ της φατσούλας με τη συνάρτηση
+    document.addEventListener("DOMContentLoaded", () => {
+        const gifBtn = document.getElementById('gif-panel-btn');
+        if (gifBtn) {
+            gifBtn.addEventListener('click', toggleGifPanel);
+        }
+    });
+            // ⚡ Λειτουργία που βάζει το Link του GIF στο σωστό κουτάκι και το στέλνει αυτόματα!
+    function insertGifLink(gifUrl) {
+        const msgInput = document.getElementById('chat-message'); // 🔥 ΔΙΟΡΘΩΘΗΚΕ ΤΟ ID
+        const sendBtn = document.getElementById('chat-send');      // 🔥 ΔΙΟΡΘΩΘΗΚΕ ΤΟ ID
+        const panel = document.getElementById('gif-popup-panel');
+
+        if (msgInput) {
+            msgInput.value = gifUrl; // Βάζει το σωστό link στο input box
+            if (sendBtn) sendBtn.disabled = false;
+            if (panel) panel.style.display = 'none'; // Κλείνει το panel αυτόματα
+            
+            // Εκτελεί το κλικ της αποστολής live!
+            if (sendBtn) {
+                sendBtn.click();
+            }
+        }
+    }
+
+    // 🔒 ΑΣΦΑΛΕΣ ΚΛΕΙΔΩΜΑ: Ακούει τα κλικς απευθείας πάνω στις εικόνες χωρίς παγώματα
+    document.addEventListener("DOMContentLoaded", () => {
+        // Σύνδεση του κουμπιού φατσούλας
+        const gifBtn = document.getElementById('gif-panel-btn');
+        if (gifBtn) {
+            gifBtn.addEventListener('click', toggleGifPanel);
+        }
+
+        // Αυτόματη σύνδεση κλικ σε ΟΛΕΣ τις εικόνες μέσα στο GIF Panel
+        const gifImages = document.querySelectorAll('.gif-grid .gif-item');
+        gifImages.forEach((img) => {
+            img.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                insertGifLink(this.src); // Καλεί τη συνάρτηση με το σωστό λινκ
+            });
+        });
+    });
+
+</script>
+</body>
+</html>
